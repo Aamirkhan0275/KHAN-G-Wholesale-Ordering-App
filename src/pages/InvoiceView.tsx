@@ -33,7 +33,7 @@ export default function InvoiceView() {
             {biz.name_ur && <div style={{ fontFamily: 'var(--font-ur)' }}>{biz.name_ur}</div>}
             <div style={{ color: '#555', fontSize: '.9rem' }}>{biz.address}{biz.phone ? ` · ${biz.phone}` : ''}{biz.whatsapp ? ` · WhatsApp ${biz.whatsapp}` : ''}</div>
           </div>
-          <div style={{ textAlign: 'end' }}>
+          <div style={{ textAlign: 'end', marginInlineStart: 'auto' }}>
             <h2 style={{ margin: 0 }}>{t('orders.invoice')}{inv.status === 'void' ? ` (${t('ai.void')})` : ''}</h2>
             <div className="mono">{inv.invoice_no}</div>
             <div>{date(inv.issue_date)}</div>
