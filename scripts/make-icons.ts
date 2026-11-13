@@ -22,5 +22,12 @@ for (const [name, size, pad] of [['icon-192', 192, 0], ['icon-512', 512, 0], ['m
   await page.setContent(`<html><body style="margin:0;background:transparent">${body.replace('<svg ', `<svg width="${size}" height="${size}" `)}</body></html>`);
   await page.screenshot({ path: `public/icons/${name}.png`, omitBackground: true });
 }
+// Android launcher icons (legacy mipmaps, all densities)
+for (const [dir, size] of [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]] as const) {
+  mkdirSync(`android/app/src/main/res/mipmap-${dir}`, { recursive: true });
+  await page.setViewportSize({ width: 256, height: 256 }); // tiny viewports stall headless Chromium; clip instead
+  await page.setContent(`<html><body style="margin:0;background:transparent">${svg(0).replace('<svg ', `<svg style="display:block" width="${size}" height="${size}" `)}</body></html>`);
+  await page.screenshot({ path: `android/app/src/main/res/mipmap-${dir}/ic_launcher.png`, omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } });
+}
 await browser.close();
 console.log('icons written to public/icons');

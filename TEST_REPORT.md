@@ -2,24 +2,25 @@
 
 | | |
 |---|---|
-| **Date** | 13 November 2026 |
-| **Version / commit** | branch `devbench/khan-g-wholesale-ordering-app`, code commit `97ff9cd` (this report is added in the next commit) |
+| **Date** | 13 November 2026 — round 1 (core app) and **round 2 (Android APK, responsive check on 9 screen sizes, contact number, customer details, daily/weekly/monthly/yearly reports)** |
+| **Version / commit** | branch `devbench/khan-g-wholesale-ordering-app`. Round 1 tested at `97ff9cd`; round 2 is in the commit that adds this version of the report (see `git log`). |
 | **Tester** | Claude (AI coding agent) in a DevBench workspace — automated tests plus screenshot review. No human tester, no physical phones. |
-| **Environment** | Linux container · Node.js 20.19.2 · PostgreSQL 17.2 (embedded, fresh database per test file, Supabase-compatible roles/`auth.uid()` layer) · Chromium 156 headless (desktop 1280–1366 px, phone emulation 320 px and 390 px) |
+| **Environment** | Linux container · Node.js 20.19.2 · PostgreSQL 17.2 (embedded, fresh database per test file, Supabase-compatible roles/`auth.uid()` layer) · Chromium 156 headless (9 viewports from 320 × 568 to 1920 × 1080, incl. phone landscape and tablets, with touch/mobile emulation) · Android SDK 34, build-tools 34.0.0, JDK 21 for the APK |
 | **How to repeat** | `npm test` (unit + integration) · `npm run build && npm run test:e2e` (browser) |
 
 ## Summary
 
 | Suite | Tests | Passed | Failed |
 |---|---:|---:|---:|
-| Unit (`tests/unit`) — phone numbers, WhatsApp message, cart maths, time zones/ISO weeks, status model, translations, CSV, env | 44 | 44 | 0 |
-| Integration (`tests/integration`) — real API + real PostgreSQL: auth, RLS isolation, products, orders, stock, invoices/PDF, ledger, reports, reminders | 122 | 122 | 0 |
-| Browser end-to-end (`tests/e2e/run-e2e.ts`) — real Chromium against the built PWA and server with demo data | 29 | 29 | 0 |
-| **Total** | **195** | **195** | **0** |
+| Unit (`tests/unit`) — phone numbers, WhatsApp message, cart maths, time zones/ISO weeks, status model, translations, CSV, env, report comparison ranges | 45 | 45 | 0 |
+| Integration (`tests/integration`) — real API + real PostgreSQL: auth, RLS isolation, products, orders, stock, invoices/PDF, ledger, reports (incl. daily/weekly/monthly/yearly), reminders, customer details, contact number | 137 | 137 | 0 |
+| Browser end-to-end (`tests/e2e/run-e2e.ts`) — real Chromium against the built PWA and server with demo data; includes **198 page × screen-size checks** | 33 | 33 | 0 |
+| Android APK build checks (signature, package, permissions, HTTPS-only setting) | 6 | 6 | 0 |
+| **Total** | **221** | **221** | **0** |
 
-All 195 pass on the final code. Getting there took fixes: the tests found **7 defects** (one critical security bug) and all 7 were fixed and re-tested (see *Bugs found and fixed*). Screenshots from the browser run are in [`docs/screenshots/`](docs/screenshots). A narrated 3½-minute video of the main flow was recorded against a local server.
+All 221 checks pass on the final code. Getting there took fixes: across both rounds the tests found **11 defects** (one critical security bug) and all 11 were fixed and re-tested (see *Bugs found and fixed*). Screenshots from the browser run are in [`docs/screenshots/`](docs/screenshots). A narrated 3½-minute video of the main flow was recorded against a local server.
 
-**Not tested:** real Android phones, iPhones/iPads, Windows Edge, real WhatsApp sending, a hosted Supabase project, and Cloudflare. *Known limitations* has the full list.
+**Not tested:** the APK on a real phone or emulator, iPhones/iPads, Windows Edge, real WhatsApp sending, a hosted Supabase project, and Cloudflare. *Known limitations* has the full list.
 
 ---
 
@@ -183,6 +184,41 @@ Tested directly in PostgreSQL as the `authenticated` role with the user id in `r
 | 98 | DevBench preview deploy | Live preview URL | **Not done**: workspace has no deploy config and the agent lacks the “Can manage deployments” permission | Blocked | — |
 | 99 | Supabase hosted project, Cloudflare Workers/Pages | — | **Not tested** (no accounts used; nothing published or paid) | Not tested | — |
 
+### Round 2 — contact number, customer details, period reports, responsive layout
+
+| # | Scenario | Expected | Actual | Result | Evidence |
+|---|---|---|---|---|---|
+| 100 | Owner sets WhatsApp + phone in Settings (with live preview) | Saved, normalized (`0311 2223334` → `+923112223334`); invalid number refused; shopkeepers cannot change it | As expected | Pass | I customers-reports; E30 |
+| 101 | Shopkeepers see the contact number | On the sign-in screen, in Account (*Chat on WhatsApp* / *Call*), after ordering; order WhatsApp button uses the new number | As expected | Pass | I customers-reports; E30 |
+| 102 | Full customer record on create/edit | Shop, owner, mobile, WhatsApp, other phone, address, area, city, location note, shop type, email, CNIC, NTN saved and normalized | As expected | Pass | I customers-reports; E31 |
+| 103 | Invalid other phone / WhatsApp / email / CNIC | Refused with a clear message | 400 with specific codes; Urdu/English messages | Pass | I customers-reports |
+| 104 | Shopkeeper sees own record | Read-only *My shop details*; cannot edit (API 403; database update affects 0 rows) | As expected | Pass | I customers-reports; E31 |
+| 105 | Private notes + credit limit | Admin only; never in shop API or readable through RLS; *Over credit limit* warning | As expected | Pass | I customers-reports; E31 |
+| 106 | Other shop's record | Not readable | 0 rows | Pass | I customers-reports |
+| 107 | Customer search by city/area; CSV export with all details | Works | As expected | Pass | I customers-reports; E31 |
+| 108 | Daily report | One row per day incl. empty days, exact values | As expected | Pass | I customers-reports; E25 |
+| 109 | Weekly report | ISO weeks (Mon–Sun) | `2026-W09/W10/W11` with correct counts | Pass | I customers-reports; E25 |
+| 110 | Monthly report | Cancelled excluded; money only from invoices/payments | As expected | Pass | I customers-reports; E25 |
+| 111 | Yearly report | Year boundary in Pakistan time (23:30 PKT on 31 Dec counts in the old year) | As expected | Pass | I customers-reports |
+| 112 | Previous-period comparison | Previous calendar month/year for whole months/years; otherwise same number of days | As expected | Pass | U misc; I customers-reports |
+| 113 | Report presets + CSV; invalid period/range | 12 bars for *Last 12 months*, 5 for *Last 5 years*; CSV; errors for bad input; shops get 403 | As expected | Pass | E25; I customers-reports |
+| 114 | **Every screen at 9 sizes** (320×568, 360×740, 390×844, 412×915, 844×390 landscape, 768×1024, 1024×768, 1366×768, 1920×1080), shop pages in Urdu, admin pages in English | No sideways scrolling and no element sticking out of the screen | **198 page × size checks, 0 problems** (after fixes #8–#9) | Pass | E32; `docs/screenshots/e32-*` |
+| 115 | Phones: admin tables | Become stacked cards with column labels | As expected | Pass | E32 screenshots |
+| 116 | Large screens | Catalogue uses 5–6 columns | 5 columns at 1280 px | Pass | E27 |
+| 117 | Inside the Android app | Web app recognises the app (no "install" instructions) | As expected | Pass | E33 |
+
+### Android app (APK)
+
+| # | Check | Expected | Actual | Result |
+|---|---|---|---|---|
+| A1 | Build `assembleRelease` + `assembleDebug` | Both build | Built (≈ 45 KB each) | Pass |
+| A2 | Release signature | Signed with the KHAN G key (v2+) | `apksigner verify`: signer *CN=KHAN G Wholesale, O=KHAN G, C=PK*, SHA-256 `dcd7eab0…419203` | Pass |
+| A3 | Package / versions | `pk.khang.wholesale`, minSdk 24 (Android 7), targetSdk 34 | As expected (`aapt2 dump badging`) | Pass |
+| A4 | Permissions | Internet only (+ storage on Android ≤ 9 for downloads) | As expected | Pass |
+| A5 | Release is HTTPS-only | `usesCleartextTraffic=false`; test APK `true` and separate app id `.test` | As expected | Pass |
+| A6 | Backups of app data disabled; RTL supported | `allowBackup=false`, `supportsRtl=true` | As expected | Pass |
+| A7 | Install and run on a phone/emulator: sign-in, ordering, WhatsApp hand-off, PDF download, photo upload, back button, offline screen | Works | **Not tested.** This environment has no Android emulator support (no KVM), and the team's Lathe test device was offline. | Not tested |
+
 ---
 
 ## Bugs found and fixed
@@ -196,6 +232,10 @@ Tested directly in PostgreSQL as the `authenticated` role with the user id in `r
 | 5 | Low | Screenshot review | Urdu font misaligned the + / − symbols in quantity buttons. | Quantity controls use the Latin font. |
 | 6 | Low | Code review | On first load the empty cart could overwrite the saved cart in device storage. | Save only after the stored cart for that user is loaded. |
 | 7 | Low | E2E runner | The test server process was left running after the browser tests (runner hung). | Server started directly with Node and stopped reliably. |
+| 8 | Medium | E32 (new screen-size test) | On tablets in landscape (1024 px), Products, Reports and the order review page scrolled sideways: wide tables widened the content column next to the sidebar. | Content column may shrink (`minmax(0, 1fr)`); tables scroll inside their own box. |
+| 9 | Low | E32 (strict check) | On 320–360 px phones, admin order rows were up to 55 px too wide (badges did not wrap). | Cells in stacked (phone) tables wrap. |
+| 10 | Low (test tool) | Screenshot review | The first overflow check could miss problems under phone emulation (the reported width grew with the content). | The check now measures against the real screen width and also flags clipped elements. |
+| 11 | Low | Integration test | Monthly comparison used "same number of days" (e.g. 2–31 March) instead of the previous calendar month. | Calendar-aware previous period for whole months/years. |
 
 ## Open issues
 
@@ -205,6 +245,7 @@ None of the defects found are open. Limitations by design or scope are below.
 
 | Area | Limitation | Impact / what to do |
 |---|---|---|
+| Android APK | Built, signed and checked, but **not installed or run on a phone/emulator** (no emulator support here; team test phone offline). The current APK asks for the server address on first launch because no online address exists yet; rebuild with the address once deployed. The signing key must be kept safe (see docs/ANDROID.md). | Install `KHAN-G-test.apk` on one phone and run the checklist in docs/ANDROID.md before giving `KHAN-G.apk` to shops. |
 | Real devices | Only headless Chromium (desktop + phone emulation) was used. Android Chrome, iPhone/iPad Safari, Windows Edge, the install prompts and touch behaviour on real phones are **untested**. | Do the manual checks below before giving the link to shops. |
 | WhatsApp | Click-to-chat link and message are verified; **actual sending in WhatsApp was not tested**. The app never sends WhatsApp messages by itself; reminders are in-app only. | Manual check on a phone. Automatic WhatsApp needs the WhatsApp Business Platform (approval, templates, usually paid). |
 | PDF | Invoice PDF uses a built-in Latin font: Urdu text (Urdu product names, Urdu shop names) is left out of the PDF. The in-app invoice page (printable) shows Urdu correctly. | Keep English names filled in for every product/shop. |
@@ -222,7 +263,8 @@ None of the defects found are open. Limitations by design or scope are below.
 
 ## Manual steps remaining (need a person)
 
-1. Deploy online (see `docs/DEPLOYMENT.md`) — needs owner decisions on host, domain and costs.
+1. Deploy online (see `docs/DEPLOYMENT.md`) — needs owner decisions on host, domain and costs. Then rebuild the APK with the server address (`scripts/build-android.sh https://…`).
+1b. Install the APK on one Android phone: sign in, place an order, send it on WhatsApp, download an invoice PDF, upload a product photo (admin), and test back button and airplane mode.
 2. On a real Android phone (Chrome): sign in, install, place an order, tap **Send order on WhatsApp**, press Send, confirm the message arrives on the business number.
 3. Same on an iPhone (Safari → Share → Add to Home Screen) and a Windows laptop (Edge/Chrome install).
 4. Enter real business settings, products, photos and stock; create real shop accounts; remove demo data (demo data is only loaded when `SEED_DEMO=true`).
@@ -230,4 +272,4 @@ None of the defects found are open. Limitations by design or scope are below.
 
 ## Release-readiness statement
 
-On the tested environment, all 195 automated tests pass: 44 unit, 122 API/database and 29 browser tests. Every defect found during testing was fixed, including one critical role-escalation bug. The code is ready for a **pilot** deployment with a few shops once the manual device checks above pass. It has not been deployed, not run on real phones, and real WhatsApp delivery has not been confirmed, so this report does not claim production readiness. These results do not rule out future bugs.
+On the tested environment, all 221 checks pass: 45 unit, 137 API/database, 33 browser tests (including 198 page × screen-size checks) and 6 APK build checks. Every defect found during testing was fixed, including one critical role-escalation bug. The Android APK is built and signed but has **not been run on a device**. The code is ready for a **pilot** deployment with a few shops once the manual device checks above pass. It has not been deployed, not run on real phones, and real WhatsApp delivery has not been confirmed, so this report does not claim production readiness. These results do not rule out future bugs.

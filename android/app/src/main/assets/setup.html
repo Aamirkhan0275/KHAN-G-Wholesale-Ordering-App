@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="style.css"><title>KHAN G</title></head>
+<body><div class="card">
+  <img src="icon.png" alt="">
+  <h1>KHAN G – app setup</h1>
+  <div class="ur">خان جی ایپ کی ترتیب</div>
+  <p>Enter the KHAN G server address (from KHAN G). This is needed only once.</p>
+  <p class="ur">خان جی کا سرور ایڈریس لکھیں (خان جی سے لیں)۔ یہ صرف ایک بار کرنا ہے۔</p>
+  <input id="url" type="url" inputmode="url" autocomplete="url" placeholder="https://app.example.com">
+  <div class="err" id="err"></div>
+  <button id="save">Save · محفوظ کریں</button>
+</div>
+<script>
+  var input = document.getElementById('url'), err = document.getElementById('err');
+  try { input.value = KhanGAndroid.serverUrl() || 'https://'; } catch (e) {}
+  document.getElementById('save').onclick = function () {
+    var v = input.value.trim();
+    if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
+    var r = KhanGAndroid.saveServerUrl(v);
+    if (r === 'https_required') err.textContent = 'Address must start with https:// · ایڈریس https:// سے شروع ہو';
+    else if (r) err.textContent = 'Address is not valid · ایڈریس درست نہیں';
+  };
+</script></body></html>

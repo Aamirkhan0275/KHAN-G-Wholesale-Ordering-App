@@ -35,3 +35,10 @@ export function formatPhone(e164: string): string {
   const m = /^\+92(3\d{2})(\d{7})$/.exec(e164);
   return m ? `0${m[1]} ${m[2]}` : e164;
 }
+
+/** Pakistani CNIC: 13 digits, stored as 12345-1234567-1. */
+export function normalizeCnic(input: string | null | undefined): { ok: true; value: string } | { ok: false } {
+  const d = String(input ?? '').replace(/[۰-۹]/g, (x) => String(x.charCodeAt(0) - 0x06f0)).replace(/[\s-]/g, '');
+  if (!/^\d{13}$/.test(d)) return { ok: false };
+  return { ok: true, value: `${d.slice(0, 5)}-${d.slice(5, 12)}-${d.slice(12)}` };
+}

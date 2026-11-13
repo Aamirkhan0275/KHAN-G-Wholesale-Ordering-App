@@ -7,11 +7,12 @@ import { formatPhone } from '../../../shared/phone';
 import { Icon } from '../../components/Icon';
 import { ErrorBox, Spinner, Switch, useToast } from '../../components/ui';
 import type { MessageKey } from '../../i18n/en';
+import { ContactCard } from '../../components/ContactCard';
 
 export function LedgerTable({ entries, money, date, t }: any) {
   return (
     <div className="table-wrap">
-      <table className="table" data-testid="ledger">
+      <table className="table stack-mobile" data-testid="ledger">
         <thead><tr><th>{t('common.date')}</th><th>{t('common.note')}</th><th className="num">{t('ledger.debit')}</th><th className="num">{t('ledger.credit')}</th><th className="num">{t('ledger.balance')}</th></tr></thead>
         <tbody>
           {entries.map((e: any) => (
@@ -35,6 +36,7 @@ export default function Account() {
   const toast = useToast();
   const ledger = useApi<{ balance: number; entries: any[] }>('/shop/ledger');
   const invoices = useApi<{ invoices: any[] }>('/shop/invoices');
+  const profile = useApi<{ profile: any }>('/shop/profile');
   const [showAll, setShowAll] = useState(false);
   const me = s.me!;
   const bal = ledger.data?.balance ?? 0;
@@ -45,7 +47,10 @@ export default function Account() {
         <div className="row"><Icon name="store" /><div className="grow"><div style={{ fontWeight: 800 }}>{me.shop_name}</div><div className="muted small">{me.full_name} · <span className="ltr num">{formatPhone(me.phone)}</span></div></div></div>
       </div>
 
-      <div className={`card stack-sm ${bal > 0 ? '' : ''}`} style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 12 }}><ContactCard name={s.lang === 'ur' && s.settings?.business_name_ur ? s.settings.business_name_ur : s.settings?.business_name}
+        whatsapp={s.settings?.business_whatsapp} phone={s.settings?.business_phone} /></div>
+
+      <div className="card stack-sm" style={{ marginTop: 12 }}>
         <div className="muted" style={{ fontWeight: 700 }}>{bal < 0 ? t('acc.credit') : t('acc.balance')}</div>
         {ledger.loading && !ledger.data ? <Spinner /> : <div style={{ fontSize: '2rem', fontWeight: 900 }} className="num" data-testid="balance">{bal === 0 ? t('acc.balanceZero') : money(Math.abs(bal))}</div>}
         <ErrorBox error={ledger.error} onRetry={ledger.reload} />
@@ -71,6 +76,8 @@ export default function Account() {
       {ledger.data && ledger.data.entries.length === 0 && <p className="muted">{t('acc.noLedger')}</p>}
       {ledger.data && ledger.data.entries.length > 0 && <LedgerTable entries={ledger.data.entries.slice(0, 30)} money={money} date={date} t={t} />}
       <p className="muted small" style={{ marginTop: 6 }}>{t('ledger.disclaimer')}</p>
+
+      {profile.data && <MyDetails p={profile.data.profile} />}
 
       <h2 style={{ marginTop: 18 }}>{t('nav.settings')}</h2>
       <div className="card stack">
@@ -98,5 +105,27 @@ export default function Account() {
         <button className="btn btn-danger btn-block" onClick={() => void s.logout()} data-testid="logout"><Icon name="logout" />{t('auth.signOut')}</button>
       </div>
     </main>
+  );
+}
+
+function MyDetails({ p }: { p: any }) {
+  const { t, date } = useI18n();
+  const rows: [string, any, boolean?][] = [
+    [t('as.shopName'), p.shop_name], [t('as.ownerName'), p.full_name], [t('auth.phone'), formatPhone(p.phone), true],
+    [t('cust.whatsapp'), p.whatsapp_phone && formatPhone(p.whatsapp_phone), true], [t('cust.altPhone'), p.alternate_phone && formatPhone(p.alternate_phone), true],
+    [t('as.address'), p.address], [t('cust.area'), p.area], [t('cust.city'), p.city], [t('as.locationNote'), p.location_note],
+    [t('cust.shopType'), p.shop_type], [t('cust.email'), p.email, true], [t('cust.cnic'), p.cnic, true], [t('cust.ntn'), p.ntn, true],
+    [t('cust.since'), date(p.created_at)],
+  ];
+  return (
+    <>
+      <h2 style={{ marginTop: 18 }}>{t('cust.myDetails')}</h2>
+      <div className="card" data-testid="my-details">
+        <dl className="details">
+          {rows.filter(([, v]) => v).map(([k, v, ltr]) => <div key={k}><dt>{k}</dt><dd className={ltr ? 'ltr' : ''}>{v}</dd></div>)}
+        </dl>
+        <p className="muted small" style={{ margin: '8px 0 0' }}>{t('cust.readOnly')}</p>
+      </div>
+    </>
   );
 }

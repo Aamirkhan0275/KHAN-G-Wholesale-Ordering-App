@@ -15,7 +15,7 @@ export default function Invoices() {
       {data && data.invoices.length === 0 && <Empty icon="file">{t('ai.empty')}</Empty>}
       {data && data.invoices.length > 0 && (
         <div className="table-wrap">
-          <table className="table" data-testid="invoices-table">
+          <table className="table stack-mobile" data-testid="invoices-table">
             <thead><tr><th>#</th><th>{t('acc.shop')}</th><th>{t('done.ref')}</th><th>{t('common.date')}</th><th className="num">{t('common.total')}</th><th>{t('common.status')}</th><th></th></tr></thead>
             <tbody>{data.invoices.map((i) => (
               <tr key={i.id}><td><Link to={`/admin/invoices/${i.id}`} className="mono">{i.invoice_no}</Link></td><td>{i.shop}</td><td><Link to={`/admin/orders/${i.order_id}`} className="mono">{i.order_ref}</Link></td>

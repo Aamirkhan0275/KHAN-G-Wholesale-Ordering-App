@@ -44,7 +44,7 @@ export default function Products() {
       {data && data.products.length === 0 && <Empty>{t('ap.empty')}</Empty>}
       {data && data.products.length > 0 && (
         <div className="table-wrap">
-          <table className="table" data-testid="products-table">
+          <table className="table stack-mobile" data-testid="products-table">
             <thead><tr><th></th><th>{t('ap.sku')}</th><th>{t('ap.nameEn')}</th><th>{t('ap.category')}</th><th className="num">{t('ap.price')}</th><th>{t('ap.stock')}</th><th>{t('common.status')}</th></tr></thead>
             <tbody>
               {data.products.map((p) => (

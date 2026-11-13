@@ -12,6 +12,7 @@ import * as reports from '../lib/reports.js';
 import { runReminders } from '../lib/reminders.js';
 import { localDateString } from '../../shared/zoned.js';
 import { log } from '../lib/log.js';
+import { customerDetailsPatch, customerDetailsShape } from '../lib/customer.js';
 
 /** Owner/Admin API. Requests run as the admin under RLS (policies require an active admin). */
 export const adminRoutes = new Hono<AppEnv>();
@@ -322,20 +323,31 @@ const createShopBody = z.object({
   activate: z.boolean().optional(),
   must_change_password: z.boolean().optional(),
   opening_balance: zMoney.optional(),
+  ...customerDetailsShape,
 }).strict();
 
 adminRoutes.get('/shops', async (c) => {
   const q = (c.req.query('q') ?? '').trim().slice(0, 60);
   const status = c.req.query('status') ?? 'all';
   const rows = await run(c, (tx) => tx`
-    select s.id, s.name, s.address, s.reminder_enabled, s.created_at, u.id as user_id, u.full_name, u.phone, u.status, u.language,
+    select s.id, s.name, s.address, s.city, s.area, s.location_note, s.alternate_phone, s.whatsapp_phone, s.email, s.cnic, s.ntn, s.shop_type,
+      s.reminder_enabled, s.created_at, u.id as user_id, u.full_name, u.phone, u.status, u.language,
       u.last_login_at, coalesce(b.balance, 0) as balance,
       (select max(submitted_at) from orders o where o.shop_id = s.id and o.status <> 'cancelled') as last_order_at,
       (select count(*) from orders o where o.shop_id = s.id and o.status <> 'cancelled') as order_count
     from shops s join app_users u on u.id = s.owner_user_id left join shop_balances b on b.shop_id = s.id
-    where (${q} = '' or s.name ilike ${'%' + q + '%'} or u.full_name ilike ${'%' + q + '%'} or u.phone like ${'%' + q.replace(/\D/g, '').replace(/^0/, '') + '%'})
+    where (${q} = '' or s.name ilike ${'%' + q + '%'} or u.full_name ilike ${'%' + q + '%'} or coalesce(s.city, '') ilike ${'%' + q + '%'}
+           or coalesce(s.area, '') ilike ${'%' + q + '%'} or coalesce(s.address, '') ilike ${'%' + q + '%'}
+           or (${q.replace(/\D/g, '')} <> '' and u.phone like ${'%' + q.replace(/\D/g, '').replace(/^0/, '') + '%'}))
       and (${status} = 'all' or u.status = ${status})
     order by case u.status when 'pending' then 0 when 'active' then 1 else 2 end, s.name`);
+  if (c.req.query('format') === 'csv') {
+    return csv(c, 'khan-g-customers.csv', rows.map((r: any) => ({
+      shop: r.name, owner: r.full_name, mobile: r.phone, whatsapp: r.whatsapp_phone, alternate_phone: r.alternate_phone, email: r.email,
+      city: r.city, area: r.area, address: r.address, location_note: r.location_note, shop_type: r.shop_type, cnic: r.cnic, ntn: r.ntn,
+      status: r.status, language: r.language, balance: r.balance, orders: r.order_count, last_order_at: r.last_order_at, created_at: r.created_at,
+    })));
+  }
   return c.json({ shops: rows });
 });
 
@@ -345,6 +357,7 @@ adminRoutes.post('/shops', async (c) => {
   if (!phone.ok) throw bad('invalid_phone');
   const problem = passwordProblem(b.password);
   if (problem) throw bad(problem);
+  const details = customerDetailsPatch(b);
   const hash = await hashPassword(b.password);
   const shop = await run(c, async (tx, admin) => {
     const [dupe] = await tx`select id from app_users where phone = ${phone.e164}`;
@@ -359,6 +372,7 @@ adminRoutes.post('/shops', async (c) => {
     const [s] = await tx<any[]>`insert into shops (owner_user_id, name, address, location_note, approved_at, approved_by)
       values (${u.id}, ${b.shop_name}, ${b.address}, ${b.location_note}, ${status === 'active' ? tx`now()` : null}, ${status === 'active' ? admin : null})
       returning *`;
+    if (Object.keys(details).length) await tx`update shops set ${tx(details as any)} where id = ${s.id}`;
     if (b.opening_balance && b.opening_balance > 0) {
       await tx`insert into ledger_entries (shop_id, entry_date, kind, debit, note, created_by)
         values (${s.id}, current_date, 'opening_balance', ${b.opening_balance}, 'Opening balance', ${admin})`;
@@ -392,7 +406,8 @@ adminRoutes.get('/shops/:id', async (c) => {
     const payments = await tx`select id, entry_date, credit as amount, payment_method, reference, note, created_at
       from ledger_entries where shop_id = ${id} and kind = 'payment' order by entry_date desc, created_at desc limit 50`;
     const reminders = await tx`select cycle_key, weekday, status, created_at from reminder_log where shop_id = ${id} order by created_at desc limit 12`;
-    return { shop, stats: { ...stats, ...inv, balance, days }, orders, payments, reminders };
+    const [adminDetails] = await tx`select notes, credit_limit, updated_at from shop_admin_details where shop_id = ${id}`;
+    return { shop, stats: { ...stats, ...inv, balance, days }, orders, payments, reminders, admin_details: adminDetails ?? { notes: null, credit_limit: null } };
   });
   return c.json(data);
 });
@@ -407,6 +422,7 @@ const updateShopBody = z.object({
   language: z.enum(['en', 'ur']).optional(),
   reminder_enabled: z.boolean().optional(),
   reminder_weekday: z.number().int().min(0).max(6).nullable().optional(),
+  ...customerDetailsShape,
 }).strict();
 
 adminRoutes.patch('/shops/:id', async (c) => {
@@ -418,6 +434,7 @@ adminRoutes.patch('/shops/:id', async (c) => {
     const shopPatch: Record<string, unknown> = {};
     if (b.shop_name !== undefined) shopPatch.name = b.shop_name;
     for (const k of ['address', 'location_note', 'reminder_enabled', 'reminder_weekday'] as const) if (b[k] !== undefined) shopPatch[k] = b[k];
+    Object.assign(shopPatch, customerDetailsPatch(b));
     if (b.status === 'active' && s.status !== 'active' && !s.approved_at) { shopPatch.approved_at = new Date(); shopPatch.approved_by = admin; }
     const userPatch: Record<string, unknown> = {};
     if (b.full_name !== undefined) userPatch.full_name = b.full_name;
@@ -436,6 +453,23 @@ adminRoutes.patch('/shops/:id', async (c) => {
     return { ok: true };
   });
   return c.json(result);
+});
+
+/** Admin-only customer facts (never visible to the shop). */
+adminRoutes.put('/shops/:id/admin-details', async (c) => {
+  const id = uuidParam(c.req.param('id'));
+  const b = parse(z.object({ notes: zOptText(1000), credit_limit: zMoney.nullish() }).strict(), await body(c));
+  const r = await run(c, async (tx, admin) => {
+    const [s] = await tx`select id from shops where id = ${id}`;
+    if (!s) throw notFound();
+    const [row] = await tx`insert into shop_admin_details (shop_id, notes, credit_limit, updated_by, updated_at)
+      values (${id}, ${b.notes}, ${b.credit_limit ?? null}, ${admin}, now())
+      on conflict (shop_id) do update set notes = excluded.notes, credit_limit = excluded.credit_limit, updated_by = excluded.updated_by, updated_at = now()
+      returning notes, credit_limit, updated_at`;
+    await audit(tx, admin, 'shop_admin_details', 'shop', id, { credit_limit: b.credit_limit ?? null });
+    return row;
+  });
+  return c.json({ admin_details: r });
 });
 
 adminRoutes.post('/shops/:id/reset-password', async (c) => {
@@ -636,9 +670,19 @@ adminRoutes.get('/reports/:name', async (c) => {
     const from = c.req.query('from') ?? new Date(Date.parse(today) - 29 * 86400000).toISOString().slice(0, 10);
     const to = c.req.query('to') ?? today;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) throw bad('invalid_range');
-    if ((Date.parse(to) - Date.parse(from)) / 86400000 > 366) throw bad('range_too_long');
+    const period = (c.req.query('period') ?? 'day') as reports.Period;
+    if (name === 'sales-by-period' && !(period in reports.PERIOD_MAX_DAYS)) throw bad('invalid_period');
+    const maxDays = name === 'sales-by-period' ? reports.PERIOD_MAX_DAYS[period] : 366;
+    if ((Date.parse(to) - Date.parse(from)) / 86400000 > maxDays) throw bad('range_too_long');
     const r = { from, to, tz };
     switch (name) {
+      case 'sales-by-period': {
+        const cur = await reports.salesByPeriod(tx, r, period);
+        // Same-length range just before, for "compared with previous period".
+        const { prevFrom, prevTo } = reports.previousRange(from, to, period);
+        const prev = await reports.salesByPeriod(tx, { from: prevFrom, to: prevTo, tz }, period);
+        return { range: r, period, rows: cur.rows, totals: cur.totals, previous: { from: prevFrom, to: prevTo, totals: prev.totals } };
+      }
       case 'summary': return { range: r, rows: [await reports.summary(tx, r)] };
       case 'sales-by-day': return { range: r, rows: await reports.salesByDay(tx, r) };
       case 'sales-by-shop': return { range: r, rows: await reports.salesByShop(tx, r) };

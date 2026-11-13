@@ -415,13 +415,91 @@ async function run(browser: Browser) {
     return text.split('\n')[0];
   });
 
-  await step('E25', 'Reports show values and export CSV', async () => {
+  await step('E25', 'Sales reports: daily / weekly / monthly / yearly with totals, comparison and CSV', async () => {
     await a.goto(`${BASE}/admin/reports`);
-    await a.waitForSelector('[data-testid=report-summary]');
-    await shot(a, 'e25-admin-reports');
+    await a.waitForSelector('[data-testid=period-totals]');
+    const counts: string[] = [];
+    for (const [preset, period] of [['thisMonth', 'day'], ['last12', 'month'], ['last5y', 'year']] as const) {
+      await a.click(`[data-testid=preset-${preset}]`);
+      await a.waitForFunction((p) => document.querySelector(`[data-testid=period-${p}]`)?.getAttribute('aria-pressed') === 'true', period);
+      await a.waitForTimeout(400);
+      counts.push(`${period}:${await a.locator('[data-testid=period-chart] .bar').count()}`);
+    }
+    await a.click('[data-testid=preset-thisMonth]');
+    await a.click('[data-testid=period-week]');
+    await a.waitForTimeout(500);
+    counts.push(`week:${await a.locator('[data-testid=period-chart] .bar').count()}`);
+    await a.click('[data-testid=preset-last12]');
+    await a.waitForTimeout(500);
+    await shot(a, 'e25-admin-reports-monthly', true);
     const href = await a.locator('[data-testid=export-csv]').getAttribute('href');
     const csv = await a.evaluate(async (h) => { const r = await fetch(h!); return [r.status, r.headers.get('content-type'), (await r.text()).slice(0, 80)]; }, href);
-    assert(csv[0] === 200 && String(csv[1]).includes('text/csv') && String(csv[2]).includes('orders'), JSON.stringify(csv));
+    assert(csv[0] === 200 && String(csv[1]).includes('text/csv') && String(csv[2]).includes('period'), JSON.stringify(csv));
+    const yearBars = Number(counts.find((c) => c.startsWith('year'))!.split(':')[1]);
+    const monthBars = Number(counts.find((c) => c.startsWith('month'))!.split(':')[1]);
+    assert(monthBars === 12 && yearBars === 5, counts.join(' '));
+    await a.click('[data-testid=tab-summary]');
+    await a.waitForSelector('[data-testid=report-summary]');
+    return counts.join(', ');
+  });
+
+  await step('E30', 'Owner sets the WhatsApp/contact number; shopkeepers see it (sign-in, account, after ordering)', async () => {
+    await a.goto(`${BASE}/admin/settings`);
+    await a.fill('[data-testid=set-whatsapp]', '0312 9876543');
+    await a.fill('[data-testid=set-phone]', '091 2345678');
+    await a.click('[data-testid=save-settings]');
+    await a.waitForSelector('text=Saved');
+    await shot(a, 'e30-admin-settings-contact');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ur-PK', serviceWorkers: 'block' });
+    const s = await c.newPage();
+    await s.goto(`${BASE}/login`);
+    const loginWa = await s.locator('[data-testid=contact-whatsapp]').innerText();
+    await login(s, shopA.phone, shopA.password);
+    await s.waitForSelector('[data-testid=product-card]');
+    await s.goto(`${BASE}/account`);
+    await s.waitForSelector('[data-testid=contact-card] a[href^="https://wa.me/923129876543"]');
+    const accWa = await s.locator('[data-testid=contact-whatsapp]').innerText();
+    await s.waitForSelector('[data-testid=my-details]');
+    await shot(s, 'e30-shop-account-contact-ur', true);
+    // the order's WhatsApp button now goes to the new number
+    await s.goto(`${BASE}/`);
+    await s.locator('[data-testid=product-card]:not(.out) [data-testid=add-btn]').first().click();
+    await s.click('[data-testid=cart-bar]');
+    await s.click('[data-testid=place-order]');
+    await s.waitForSelector('[data-testid=send-wa]');
+    const href = await s.locator('[data-testid=send-wa]').getAttribute('data-href');
+    await c.close();
+    assert(loginWa.includes('0312 9876543') && accWa.includes('0312 9876543') && href!.startsWith('https://wa.me/923129876543?'), `${loginWa} | ${accWa} | ${href?.slice(0, 40)}`);
+  });
+
+  await step('E31', 'Owner records full customer details; shopkeeper sees them read-only; private notes stay private', async () => {
+    await a.goto(`${BASE}/admin/shops`);
+    await a.click('text=Madina General Store');
+    await a.waitForSelector('[data-testid=customer-details]');
+    await a.click('button:has-text("Edit")');
+    for (const [k, v] of [['city', 'Peshawar'], ['area', 'Qissa Khwani'], ['whatsapp_phone', '0300 1110001'], ['alternate_phone', '0333 1234567'], ['email', 'madina@example.pk'], ['cnic', '1730112345671'], ['shop_type', 'Karyana']]) {
+      await a.fill(`.modal input[name=${k}]`, v);
+    }
+    await a.click('[data-testid=edit-save]');
+    await a.waitForSelector('[data-testid=customer-details] >> text=17301-1234567-1');
+    await a.fill('[data-testid=admin-notes] textarea', 'Private: pays on Fridays');
+    await a.fill('[data-testid=admin-notes] input[name=credit_limit]', '1000');
+    await a.click('[data-testid=admin-notes-save]');
+    await a.waitForSelector('[data-testid=over-limit]');
+    await shot(a, 'e31-admin-customer-details', true);
+    const csv = await a.evaluate(async () => (await (await fetch('/api/admin/shops?format=csv')).text()));
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-US', serviceWorkers: 'block' });
+    const s = await c.newPage();
+    await login(s, shopA.phone, shopA.password);
+    await s.waitForSelector('[data-testid=product-card]');
+    await s.goto(`${BASE}/account`);
+    await s.waitForSelector('[data-testid=my-details]');
+    const mine = await s.locator('[data-testid=my-details]').innerText();
+    const page = await s.locator('main').innerText();
+    await c.close();
+    assert(mine.includes('Peshawar') && mine.includes('Qissa Khwani') && mine.includes('17301-1234567-1'), mine);
+    assert(!page.includes('pays on Fridays'), 'private note leaked to shop');
+    assert(csv.includes('Qissa Khwani') && csv.includes('madina@example.pk'), 'csv missing details');
   });
 
   await step('E26', 'Narrow phones (320 px) have no sideways scrolling; tap targets ≥ 44 px', async () => {
@@ -438,7 +516,7 @@ async function run(browser: Browser) {
     assert(overflow <= 0 && overflow2 <= 0 && small === 0, `overflow=${overflow}/${overflow2} small=${small}`);
   });
 
-  await step('E27', 'Tablet / laptop widths use a multi-column grid', async () => {
+  await step('E27', 'Laptop width uses a multi-column grid (5 columns at 1280 px)', async () => {
     const c = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
     const s = await c.newPage();
     await login(s, shopA.phone, shopA.password);
@@ -446,7 +524,7 @@ async function run(browser: Browser) {
     const cols = await s.evaluate(() => getComputedStyle(document.querySelector('.product-grid')!).gridTemplateColumns.split(' ').length);
     await shot(s, 'e27-catalogue-desktop-ur');
     await c.close();
-    assert(cols === 4, `cols=${cols}`);
+    assert(cols === 5, `cols=${cols}`);
   });
 
   // ------------------------------------------------------------ PWA
@@ -470,6 +548,70 @@ async function run(browser: Browser) {
     await c.close();
     assert(controlled, 'service worker not controlling the page');
     return `offline: app shell + offline notice shown; ${cards} cached catalogue cards visible (orders still need internet)`;
+  });
+
+  await step('E32', 'Responsive on every screen size: no sideways scrolling on any page (phones, landscape, tablets, laptops)', async () => {
+    const sizes: [string, number, number, boolean][] = [
+      ['small-phone', 320, 568, true], ['android-360', 360, 740, true], ['iphone-390', 390, 844, true], ['pixel-412', 412, 915, true],
+      ['phone-landscape', 844, 390, true], ['tablet-portrait', 768, 1024, true], ['tablet-landscape', 1024, 768, true],
+      ['laptop-1366', 1366, 768, false], ['desktop-1920', 1920, 1080, false],
+    ];
+    const shopPages = ['/', '/cart', '/orders', '/account', '/notifications', '/install'];
+    const adminPages = ['/admin', '/admin/orders', '/admin/products', '/admin/products/new', '/admin/shops', '/admin/shops/new', '/admin/invoices', '/admin/reports', '/admin/reminders', '/admin/settings', '/admin/stock', '/admin/categories', '/admin/more'];
+    const problems: string[] = [];
+    let checked = 0;
+    for (const [name, w, h, touch] of sizes) {
+      for (const [who, phoneNo, pw, pages, lang] of [['shop', shopA.phone, shopA.password, shopPages, 'ur'], ['admin', DEMO_ADMIN.phone, DEMO_ADMIN.password, adminPages, 'en']] as const) {
+        const c = await browser.newContext({ viewport: { width: w, height: h }, isMobile: touch && w < 900, hasTouch: touch, serviceWorkers: 'block' });
+        await c.addInitScript((l) => { try { localStorage.setItem('kg.lang', l); } catch { /* */ } }, lang);
+        const s = await c.newPage();
+        await login(s, phoneNo, pw);
+        await s.waitForSelector(who === 'shop' ? '[data-testid=product-card]' : '[data-testid=stat-new]');
+        const detail = who === 'admin' ? await s.evaluate(async () => {
+          const o = (await (await fetch('/api/admin/orders')).json()).orders[0];
+          const sh = (await (await fetch('/api/admin/shops')).json()).shops[0];
+          return [`/admin/orders/${o.id}`, `/admin/shops/${sh.id}`];
+        }) : await s.evaluate(async () => [`/orders/${(await (await fetch('/api/shop/orders')).json()).orders[0].id}`]);
+        for (const path of [...pages, ...detail]) {
+          await s.goto(`${BASE}${path}`);
+          await s.waitForSelector('main', { timeout: 15000 });
+          await s.waitForTimeout(350);
+          // Measure against the real screen width (mobile emulation can widen innerWidth to fit
+          // overflowing content) and also catch elements that stick out but are clipped.
+          const over = await s.evaluate((vw) => {
+            const page = document.documentElement.scrollWidth - vw;
+            let worst = 0; let what = '';
+            document.querySelectorAll('main *').forEach((el) => {
+              if ((el as HTMLElement).closest('.table-wrap, .chips, .bars, .segmented')) return; // these scroll on purpose
+              const r = el.getBoundingClientRect();
+              if (r.width === 0 || r.height === 0) return;
+              const out = Math.max(r.right - vw, -r.left);
+              if (out > worst) { worst = out; what = `${el.tagName.toLowerCase()}.${String((el as HTMLElement).className).split(' ')[0]}`; }
+            });
+            return { page, worst: Math.round(worst), what };
+          }, w);
+          checked++;
+          if (over.page > 1 || over.worst > 1) problems.push(`${name} ${path} page+${over.page} el+${over.worst} ${over.what}`);
+        }
+        if (['small-phone', 'tablet-portrait', 'phone-landscape', 'desktop-1920'].includes(name)) {
+          await s.goto(`${BASE}${who === 'shop' ? '/' : detail[0]}`);
+          await s.waitForTimeout(500);
+          await shot(s, `e32-${name}-${who}`);
+        }
+        await c.close();
+      }
+    }
+    assert(problems.length === 0, problems.join('; '));
+    return `${checked} page × size checks, ${sizes.length} sizes, 0 overflow`;
+  });
+
+  await step('E33', 'Android app mode: the web app recognises the KHAN G app (no "install" instructions inside the app)', async () => {
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, serviceWorkers: 'block',
+      userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36 KhanGApp/1.0.0' });
+    const s = await c.newPage();
+    await s.goto(`${BASE}/install`);
+    await s.waitForSelector('[data-testid=in-android-app]');
+    await c.close();
   });
 
   await step('E29', 'No uncaught JavaScript errors during the whole run', async () => {

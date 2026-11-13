@@ -10,7 +10,7 @@ export interface Me {
   shop_id: string | null; shop_name: string | null;
 }
 export interface PublicSettings {
-  business_name: string; business_name_ur: string | null; business_whatsapp: string | null;
+  business_name: string; business_name_ur: string | null; business_whatsapp: string | null; business_phone?: string | null; business_address?: string | null;
   currency: string; show_prices: boolean; timezone: string;
 }
 

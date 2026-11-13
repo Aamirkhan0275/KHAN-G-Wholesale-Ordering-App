@@ -10,3 +10,4 @@ test-results
 artifacts/
 devbench/takes/out/
 __pycache__/
+dist-android/

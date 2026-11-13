@@ -8,6 +8,24 @@ import { api } from '../lib/api';
 import { useOnline } from './ui';
 import type { MessageKey } from '../i18n/en';
 
+/** Copies each column header into its cells' data-label so `.table.stack-mobile` can show labels on phones. */
+export function useStackTableLabels() {
+  useEffect(() => {
+    const label = () => {
+      document.querySelectorAll<HTMLTableElement>('table.stack-mobile').forEach((tbl) => {
+        const heads = [...tbl.querySelectorAll('thead th')].map((th) => th.textContent?.trim() ?? '');
+        tbl.querySelectorAll('tbody tr').forEach((tr) => {
+          [...tr.children].forEach((td, i) => { if (td.getAttribute('data-label') !== (heads[i] ?? '')) td.setAttribute('data-label', heads[i] ?? ''); });
+        });
+      });
+    };
+    label();
+    const mo = new MutationObserver(label);
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => mo.disconnect();
+  }, []);
+}
+
 export function useUnread(enabled: boolean, path = '/notifications') {
   const [n, setN] = useState(0);
   useEffect(() => {
@@ -65,6 +83,7 @@ function OfflineBar() {
 
 export function ShopLayout() {
   const { t } = useI18n();
+  useStackTableLabels();
   const { lines } = useCart();
   return (
     <>
@@ -96,6 +115,7 @@ export const ADMIN_LINKS: { to: string; icon: string; key: MessageKey; end?: boo
 
 export function AdminLayout() {
   const { t } = useI18n();
+  useStackTableLabels();
   return (
     <>
       <Header home="/admin" notifPath="/admin/orders?status=submitted" />

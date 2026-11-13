@@ -77,7 +77,7 @@ export default function Catalogue() {
   const onFav = async (id: string, on: boolean) => { try { await setFavourite(id, on); } catch { toast(t('common.error'), 'bad'); } };
 
   return (
-    <main className="page">
+    <main className="page wide">
       <ReminderBanner onRepeat={repeat} />
       <div className="search-bar">
         <div className="search">

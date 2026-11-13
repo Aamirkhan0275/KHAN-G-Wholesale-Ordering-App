@@ -4,7 +4,8 @@ A mobile-first, installable web app (PWA) for **KHAN G**, a wholesale business s
 
 - **Languages:** Urdu (right-to-left, Nastaliq font) and English, switchable anywhere.
 - **Themes:** light, dark, or automatic (follows the phone); saved per device and per account.
-- **Devices:** phones first; also tablets and Windows laptops. Installable on Android, iPhone/iPad and Windows.
+- **Devices:** phones first; also tablets and Windows laptops. Installable on Android, iPhone/iPad and Windows, plus an **Android APK** ([docs/ANDROID.md](docs/ANDROID.md)).
+- **Responsive:** the browser tests check 9 screen sizes, from 320 px phones through phone landscape and tablets to 1920 px desktops, on every screen.
 
 > Test results: see [TEST_REPORT.md](TEST_REPORT.md).
 
@@ -117,6 +118,10 @@ Free-tier limits to know: 500 MB database, free projects can be paused after a p
 
 **Products and photos** — Admin → Products → *Add product*: code (SKU), English/Urdu names and descriptions, category, unit (Carton/Box/Pack/Dozen/Piece; labels editable), pieces per unit, wholesale price, *show price to shops*, opening stock, low-stock alert level, sort order. After saving, **Upload photo** (camera or file; JPEG/PNG/WebP; resized automatically). Products used in past orders are **archived**, never deleted, so old orders and invoices stay intact.
 
+**Customer details** — each shop record holds shop name, owner name, mobile, WhatsApp number, other phone, address, area/market, city, location note, shop type, email, CNIC and NTN (all except name/mobile optional; phones, email and CNIC are validated and normalized). The owner can also keep **private notes and a credit limit** (never visible to the shop; an *Over credit limit* warning shows on the shop page). Admin → Shops → **Export customers (CSV)** downloads the full list. Shopkeepers see their own record read-only in Account → *My shop details*.
+
+**Contact number shown to shopkeepers** — Admin → Settings → *Contact number for shopkeepers*: the WhatsApp number (orders are sent there) and a phone number, with a live preview. Shopkeepers see it on the sign-in screen, in Account (*Chat on WhatsApp* / *Call* buttons) and after placing an order.
+
 **Categories** — Admin → Categories: add, rename, hide. A category with products cannot be deleted.
 
 **Stock** — Admin → Stock (or a product): *Adjust stock* with a reason (restock, count correction, damaged/expired, returned). Every change is recorded with who/when/why.
@@ -152,7 +157,7 @@ Per shop: invoice (debit), payment (credit; cash/bank/mobile wallet/cheque/other
 
 ### Reports
 
-Admin → Reports (date range, CSV export): summary, sales by day, sales by shop, product quantities, balances, low stock. **Cancelled orders are excluded.** Money values come only from issued invoices and recorded payments — no values are estimated.
+Admin → Reports → **Sales by period**: **Daily, Weekly (Mon–Sun), Monthly or Yearly** buckets with orders, cancelled, shops ordering, units asked/confirmed, invoices, invoiced value and payments, a bar chart, totals, and a comparison with the previous period (previous calendar month/year for whole months/years). Quick ranges: Today, This week, This month, Last month, This year, Last 12 months, Last 5 years, or any custom range. Other reports: summary, sales by shop, product quantities, balances, low stock. All export to CSV. **Cancelled orders are excluded.** Money values come only from issued invoices and recorded payments — no values are estimated.
 
 ### Weekly reorder reminders (in-app)
 
@@ -180,6 +185,10 @@ The same steps are in the app (Account → *Install the app*) in Urdu and Englis
 **Important:** remote shopkeepers can only use the app after it is deployed online (see below). An app running on the owner’s computer is not reachable from shops’ phones.
 
 ---
+
+## Android app (APK)
+
+`android/` contains a small native Android app (~45 KB) that opens the KHAN G server full-screen and hands WhatsApp/phone links to their apps; PDFs/CSVs download to *Downloads*. Build with `scripts/build-android.sh https://your-server` → `dist-android/KHAN-G.apk`. Details, signing key care, sharing and Play Store notes: [docs/ANDROID.md](docs/ANDROID.md).
 
 ## Security notes
 

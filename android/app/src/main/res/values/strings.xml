@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KHAN G</string>
+    <string name="no_app">No app found to open this link.</string>
+    <string name="downloading">Downloading…</string>
+</resources>

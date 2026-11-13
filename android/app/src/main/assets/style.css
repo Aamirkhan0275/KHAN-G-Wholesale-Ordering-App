@@ -1,0 +1,10 @@
+body{margin:0;font-family:system-ui,sans-serif;background:#f4f6f5;color:#17201c;display:flex;min-height:100vh;align-items:center;justify-content:center}
+@media (prefers-color-scheme:dark){body{background:#0f1714;color:#e8efeb}.card{background:#17221e!important;border-color:#2f3f38!important}input{background:#0f1714;color:#e8efeb}}
+.card{background:#fff;border:1px solid #d9dfdc;border-radius:16px;padding:22px;margin:16px;max-width:440px;width:100%;box-sizing:border-box;text-align:center}
+img{width:84px;height:84px;border-radius:20px}
+h1{font-size:1.3rem;margin:12px 0 4px}.ur{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2;font-size:1.05rem}
+p{margin:6px 0;color:#56635d}
+input{width:100%;box-sizing:border-box;min-height:52px;font-size:1.05rem;border:1.5px solid #d9dfdc;border-radius:12px;padding:10px 12px;margin:14px 0 6px;direction:ltr}
+button{width:100%;min-height:56px;border:0;border-radius:14px;background:#0f6b4a;color:#fff;font-size:1.1rem;font-weight:700;margin-top:10px}
+.link{background:none;color:#0f6b4a;min-height:44px;font-size:.95rem}
+.err{color:#b42318;font-weight:700;min-height:1.2em}

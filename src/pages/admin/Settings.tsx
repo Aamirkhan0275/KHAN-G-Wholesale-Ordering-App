@@ -5,6 +5,7 @@ import { api, ApiFailure } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { Icon } from '../../components/Icon';
 import { Field, Spinner, Switch, useToast } from '../../components/ui';
+import { ContactCard } from '../../components/ContactCard';
 
 export default function Settings() {
   const { t, te } = useI18n();
@@ -28,11 +29,18 @@ export default function Settings() {
     <main className="page narrow">
       <h1>{t('set.title')}</h1>
       <form className="card stack" onSubmit={save}>
+        <h2>{t('set.contactSection')}</h2>
+        <p className="muted small" style={{ margin: 0 }}>{t('set.contactHint')}</p>
+        <div className="form-grid">
+          <Field label={t('set.whatsapp')} hint="0300 1234567 / +92 300 1234567"><input className="input ltr" dir="ltr" type="tel" value={s.business_whatsapp ?? ''} onChange={set('business_whatsapp')} data-testid="set-whatsapp" /></Field>
+          <Field label={t('set.phone')}><input className="input ltr" dir="ltr" type="tel" value={s.business_phone ?? ''} onChange={set('business_phone')} data-testid="set-phone" /></Field>
+        </div>
+        <div><div className="muted small" style={{ fontWeight: 700, marginBottom: 6 }}>{t('set.preview')}</div>
+          <ContactCard name={s.business_name} whatsapp={s.business_whatsapp} phone={s.business_phone} compact /></div>
+        <hr className="divider" />
         <h2>{t('set.business')}</h2>
         <Field label={t('set.nameEn')}><input className="input" required value={s.business_name ?? ''} onChange={set('business_name')} /></Field>
         <Field label={t('set.nameUr')}><input className="input" dir="rtl" value={s.business_name_ur ?? ''} onChange={set('business_name_ur')} /></Field>
-        <Field label={t('set.whatsapp')} hint="e.g. 0300 1234567 / +92 300 1234567"><input className="input ltr" dir="ltr" type="tel" value={s.business_whatsapp ?? ''} onChange={set('business_whatsapp')} data-testid="set-whatsapp" /></Field>
-        <Field label={t('set.phone')}><input className="input ltr" dir="ltr" value={s.business_phone ?? ''} onChange={set('business_phone')} /></Field>
         <Field label={t('set.address')}><input className="input" value={s.business_address ?? ''} onChange={set('business_address')} /></Field>
         <Field label={t('set.email')}><input className="input ltr" dir="ltr" type="email" value={s.business_email ?? ''} onChange={set('business_email')} /></Field>
         <Field label={t('set.footer')}><textarea className="input" value={s.invoice_footer ?? ''} maxLength={300} onChange={set('invoice_footer')} /></Field>

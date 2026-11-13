@@ -15,7 +15,8 @@ export default function ShopNew() {
   const { t, te } = useI18n();
   const nav = useNavigate();
   const toast = useToast();
-  const [f, setF] = useState({ full_name: '', phone: '', shop_name: '', address: '', location_note: '', language: 'ur', password: randomPin(), activate: true, must_change_password: true, opening_balance: '' });
+  const [f, setF] = useState({ full_name: '', phone: '', shop_name: '', address: '', location_note: '', language: 'ur', password: randomPin(), activate: true, must_change_password: true, opening_balance: '',
+    city: '', area: '', whatsapp_phone: '', alternate_phone: '', email: '', cnic: '', ntn: '', shop_type: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const phoneOk = !f.phone || normalizePhone(f.phone).ok;
@@ -25,7 +26,8 @@ export default function ShopNew() {
     if (!normalizePhone(f.phone).ok) { setErr('invalid_phone'); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await api<{ shop: any }>('/admin/shops', { body: { ...f, address: f.address || null, location_note: f.location_note || null, opening_balance: f.opening_balance ? Number(f.opening_balance) : undefined } });
+      const extra = Object.fromEntries(['city', 'area', 'whatsapp_phone', 'alternate_phone', 'email', 'cnic', 'ntn', 'shop_type'].map((k) => [k, (f as any)[k] || null]));
+      const r = await api<{ shop: any }>('/admin/shops', { body: { ...f, ...extra, address: f.address || null, location_note: f.location_note || null, opening_balance: f.opening_balance ? Number(f.opening_balance) : undefined } });
       toast(t('common.saved'));
       nav(`/admin/shops/${r.shop.id}`, { replace: true });
     } catch (e2) { setErr(e2 instanceof ApiFailure ? e2.code : 'network'); }
@@ -41,6 +43,20 @@ export default function ShopNew() {
         <Field label={t('as.shopName')}><input className="input" required minLength={2} value={f.shop_name} onChange={set('shop_name')} name="shop_name" /></Field>
         <Field label={`${t('as.address')} (${t('common.optional')})`}><input className="input" value={f.address} onChange={set('address')} /></Field>
         <Field label={`${t('as.locationNote')} (${t('common.optional')})`}><input className="input" value={f.location_note} onChange={set('location_note')} /></Field>
+        <div className="form-grid">
+          <Field label={`${t('cust.city')} (${t('common.optional')})`}><input className="input" value={f.city} onChange={set('city')} name="city" /></Field>
+          <Field label={`${t('cust.area')} (${t('common.optional')})`}><input className="input" value={f.area} onChange={set('area')} name="area" /></Field>
+        </div>
+        <details className="card flat"><summary style={{ fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>{t('cust.more')}</summary>
+          <div className="form-grid" style={{ marginTop: 10 }}>
+            <Field label={t('cust.whatsapp')}><input className="input ltr" dir="ltr" type="tel" value={f.whatsapp_phone} onChange={set('whatsapp_phone')} name="whatsapp_phone" /></Field>
+            <Field label={t('cust.altPhone')}><input className="input ltr" dir="ltr" type="tel" value={f.alternate_phone} onChange={set('alternate_phone')} name="alternate_phone" /></Field>
+            <Field label={t('cust.email')}><input className="input ltr" dir="ltr" type="email" value={f.email} onChange={set('email')} name="email" /></Field>
+            <Field label={t('cust.cnic')}><input className="input ltr" dir="ltr" inputMode="numeric" placeholder="17301-1234567-1" value={f.cnic} onChange={set('cnic')} name="cnic" /></Field>
+            <Field label={t('cust.ntn')}><input className="input ltr" dir="ltr" value={f.ntn} onChange={set('ntn')} name="ntn" /></Field>
+            <Field label={t('cust.shopType')}><input className="input" value={f.shop_type} onChange={set('shop_type')} name="shop_type" /></Field>
+          </div>
+        </details>
         <Field label={t('acc.language')}><select className="input" value={f.language} onChange={set('language')}><option value="ur">اردو</option><option value="en">English</option></select></Field>
         <Field label={t('as.tempPassword')}><input className="input mono" dir="ltr" required minLength={6} value={f.password} onChange={set('password')} name="password" /></Field>
         <Field label={`${t('as.openingBalance')} (${t('common.optional')})`}><input className="input" type="number" min={0} value={f.opening_balance} onChange={set('opening_balance')} /></Field>

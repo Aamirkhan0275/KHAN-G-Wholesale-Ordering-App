@@ -43,3 +43,15 @@ describe('env', () => {
     expect(() => loadEnv({})).toThrow(/DATABASE_URL/);
   });
 });
+
+import { previousRange } from '../../server/lib/reports';
+describe('report comparison range', () => {
+  it('calendar months and years shift by whole units; other ranges by days', () => {
+    expect(previousRange('2026-04-01', '2026-04-30', 'month')).toEqual({ prevFrom: '2026-03-01', prevTo: '2026-03-31' });
+    expect(previousRange('2026-03-01', '2026-03-31', 'month')).toEqual({ prevFrom: '2026-02-01', prevTo: '2026-02-28' });
+    expect(previousRange('2026-01-01', '2026-12-31', 'year')).toEqual({ prevFrom: '2025-01-01', prevTo: '2025-12-31' });
+    expect(previousRange('2026-01-01', '2026-03-31', 'month')).toEqual({ prevFrom: '2025-10-01', prevTo: '2025-12-31' });
+    expect(previousRange('2026-03-09', '2026-03-15', 'week')).toEqual({ prevFrom: '2026-03-02', prevTo: '2026-03-08' });
+    expect(previousRange('2026-03-10', '2026-03-10', 'day')).toEqual({ prevFrom: '2026-03-09', prevTo: '2026-03-09' });
+  });
+});

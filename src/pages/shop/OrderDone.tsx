@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { Icon } from '../../components/Icon';
 import { Spinner, StatusBadge } from '../../components/ui';
 import { openWhatsApp, orderWhatsAppUrl } from './whatsapp';
+import { ContactCard } from '../../components/ContactCard';
 
 export default function OrderDone() {
   const { id } = useParams();
@@ -37,6 +38,7 @@ export default function OrderDone() {
           </>
         ) : <div className="warn-box"><Icon name="alert" />{t('done.waMissing')}</div>}
         <div className="info-box"><Icon name="check" />{t('done.saved')}</div>
+        <ContactCard whatsapp={settings?.business_whatsapp} phone={settings?.business_phone} compact />
         <div className="row">
           <Link to={`/orders/${order.id}`} className="btn btn-block grow">{t('done.viewOrder')}</Link>
           <Link to="/" className="btn btn-soft btn-block grow">{t('done.newOrder')}</Link>

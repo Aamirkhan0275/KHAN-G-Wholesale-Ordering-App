@@ -44,7 +44,7 @@ export default function AdminOrders() {
       {data && data.orders.length === 0 && <Empty icon="list">{t('ao.empty')}</Empty>}
       {data && data.orders.length > 0 && (
         <div className="table-wrap">
-          <table className="table" data-testid="admin-orders">
+          <table className="table stack-mobile" data-testid="admin-orders">
             <thead><tr><th>{t('done.ref')}</th><th>{t('acc.shop')}</th><th>{t('common.date')}</th><th className="num">{t('common.items')}</th><th className="num">{t('common.total')}</th><th>{t('common.status')}</th></tr></thead>
             <tbody>
               {data.orders.map((o) => (

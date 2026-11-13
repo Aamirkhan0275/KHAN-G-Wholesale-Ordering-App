@@ -20,7 +20,9 @@ export default function Shops() {
   const { data, error, loading, reload } = useApi<{ shops: any[] }>(`/admin/shops?status=${status}&q=${encodeURIComponent(q)}`);
   return (
     <main className="page">
-      <div className="page-title row between"><h1>{t('nav.shops')}</h1><Link to="/admin/shops/new" className="btn btn-primary" data-testid="add-shop"><Icon name="plus" />{t('as.add')}</Link></div>
+      <div className="page-title row between wrap"><h1>{t('nav.shops')}</h1>
+        <div className="row wrap"><a className="btn btn-sm" href="/api/admin/shops?format=csv" data-testid="customers-csv"><Icon name="download" size={18} />{t('cust.exportCsv')}</a>
+        <Link to="/admin/shops/new" className="btn btn-primary" data-testid="add-shop"><Icon name="plus" />{t('as.add')}</Link></div></div>
       <div className="search"><Icon name="search" /><input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.search')} aria-label={t('common.search')} /></div>
       <div className="chips">{['all', 'pending', 'active', 'inactive'].map((s) => <button key={s} className="chip" aria-pressed={status === s} onClick={() => setStatus(s)}>{s === 'all' ? t('common.all') : t(`as.status.${s}` as any)}</button>)}</div>
       <ErrorBox error={error} onRetry={reload} />
@@ -33,7 +35,7 @@ export default function Shops() {
               <Icon name="store" />
               <div className="grow">
                 <div className="row wrap"><span className="title">{s.name}</span><ShopStatus status={s.status} /></div>
-                <div className="sub">{s.full_name} · <span className="ltr">{formatPhone(s.phone)}</span> · {t('as.lastOrder')}: {s.last_order_at ? date(s.last_order_at) : t('as.never')}</div>
+                <div className="sub">{s.full_name} · <span className="ltr">{formatPhone(s.phone)}</span>{s.city || s.area ? ` · ${[s.area, s.city].filter(Boolean).join(', ')}` : ''} · {t('as.lastOrder')}: {s.last_order_at ? date(s.last_order_at) : t('as.never')}</div>
               </div>
               <div className="num" style={{ fontWeight: 800, color: s.balance > 0 ? 'var(--warn)' : undefined }}>{money(s.balance)}</div>
               <Icon name="chev" className="chev" />

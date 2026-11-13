@@ -23,7 +23,8 @@ export default function ShopDetail() {
 
   if (loading && !data) return <main className="page"><Spinner /></main>;
   if (error) return <main className="page"><ErrorBox error={error} onRetry={reload} /></main>;
-  const { shop, stats, orders, reminders } = data;
+  const { shop, stats, orders, reminders, admin_details } = data;
+  const overLimit = admin_details?.credit_limit != null && stats.balance > admin_details.credit_limit;
   const patch = async (body: any, msg?: string) => {
     if (msg && !(await confirm({ message: msg }))) return;
     setErr(null);
@@ -38,9 +39,16 @@ export default function ShopDetail() {
       {err && <div className="error-box" style={{ marginBottom: 10 }}>{te(err, ['as.err', 'auth.err'])}</div>}
       <div className="grid cols-2">
         <div className="card stack-sm">
-          <div><b>{shop.full_name}</b> · <span className="ltr">{formatPhone(shop.phone)}</span></div>
-          {shop.address && <div className="muted">{shop.address}</div>}
-          {shop.location_note && <div className="muted small">{shop.location_note}</div>}
+          <dl className="details" data-testid="customer-details">
+            {([
+              [t('as.ownerName'), shop.full_name], [t('auth.phone'), formatPhone(shop.phone), true],
+              [t('cust.whatsapp'), shop.whatsapp_phone && formatPhone(shop.whatsapp_phone), true], [t('cust.altPhone'), shop.alternate_phone && formatPhone(shop.alternate_phone), true],
+              [t('as.address'), shop.address], [t('cust.area'), shop.area], [t('cust.city'), shop.city], [t('as.locationNote'), shop.location_note],
+              [t('cust.shopType'), shop.shop_type], [t('cust.email'), shop.email, true], [t('cust.cnic'), shop.cnic, true], [t('cust.ntn'), shop.ntn, true],
+              [t('cust.since'), date(shop.created_at)],
+            ] as [string, any, boolean?][]).filter(([, v]) => v).map(([k, v, ltr]) => <div key={k}><dt>{k}</dt><dd className={ltr ? 'ltr' : ''}>{v}</dd></div>)}
+          </dl>
+          {overLimit && <div className="warn-box" data-testid="over-limit"><Icon name="alert" />{t('cust.overLimit')}: {money(stats.balance)} / {money(admin_details.credit_limit)}</div>}
           <div className="muted small">{t('as.lastLogin')}: {shop.last_login_at ? date(shop.last_login_at, true) : t('as.never')}</div>
           <div className="row wrap">
             {shop.status === 'pending' && <button className="btn btn-primary" onClick={() => patch({ status: 'active' })} data-testid="approve-shop"><Icon name="check" />{t('as.approve')}</button>}
@@ -82,7 +90,9 @@ export default function ShopDetail() {
         <p className="muted small">{t('ledger.disclaimer')}</p>
       </section>
 
-      <section className="card stack">
+      <AdminNotes shopId={id!} initial={admin_details} onSaved={() => { void reload(); toast(t('common.saved')); }} />
+
+      <section className="card stack" style={{ marginTop: 12 }}>
         <h2>{t('as.reminderSettings')}</h2>
         <div className="row between"><span>{t('as.reminderEnabled')}</span><Switch checked={shop.reminder_enabled} label={t('as.reminderEnabled')} onChange={(v) => patch({ reminder_enabled: v })} /></div>
         <Field label={t('as.reminderDay')}>
@@ -158,7 +168,9 @@ function AdjustModal({ shopId, onClose, onDone }: { shopId: string; onClose: () 
 
 function EditModal({ shop, onClose, onSave }: { shop: any; onClose: () => void; onSave: (b: any) => Promise<void> }) {
   const { t } = useI18n();
-  const [f, setF] = useState({ shop_name: shop.name, full_name: shop.full_name, phone: formatPhone(shop.phone), address: shop.address ?? '', location_note: shop.location_note ?? '', language: shop.language });
+  const [f, setF] = useState<Record<string, string>>({ shop_name: shop.name, full_name: shop.full_name, phone: formatPhone(shop.phone), address: shop.address ?? '', location_note: shop.location_note ?? '', language: shop.language,
+    city: shop.city ?? '', area: shop.area ?? '', whatsapp_phone: shop.whatsapp_phone ? formatPhone(shop.whatsapp_phone) : '', alternate_phone: shop.alternate_phone ? formatPhone(shop.alternate_phone) : '',
+    email: shop.email ?? '', cnic: shop.cnic ?? '', ntn: shop.ntn ?? '', shop_type: shop.shop_type ?? '' });
   return (
     <Modal title={t('common.edit')} onClose={onClose}>
       <div className="stack">
@@ -168,9 +180,12 @@ function EditModal({ shop, onClose, onSave }: { shop: any; onClose: () => void; 
         <Field label={t('as.address')}><input className="input" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} /></Field>
         <Field label={t('as.locationNote')}><input className="input" value={f.location_note} onChange={(e) => setF({ ...f, location_note: e.target.value })} /></Field>
         <Field label={t('acc.language')}><select className="input" value={f.language} onChange={(e) => setF({ ...f, language: e.target.value })}><option value="ur">اردو</option><option value="en">English</option></select></Field>
+        {([['city', 'cust.city'], ['area', 'cust.area'], ['whatsapp_phone', 'cust.whatsapp'], ['alternate_phone', 'cust.altPhone'], ['email', 'cust.email'], ['cnic', 'cust.cnic'], ['ntn', 'cust.ntn'], ['shop_type', 'cust.shopType']] as const).map(([k, label]) => (
+          <Field key={k} label={t(label)}><input className={`input ${['whatsapp_phone', 'alternate_phone', 'email', 'cnic', 'ntn'].includes(k) ? 'ltr' : ''}`} name={k} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></Field>
+        ))}
       </div>
       <div className="actions"><button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn btn-primary" onClick={() => void onSave({ ...f, address: f.address || null, location_note: f.location_note || null })}>{t('common.save')}</button></div>
+        <button className="btn btn-primary" data-testid="edit-save" onClick={() => void onSave(Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v === '' && !['shop_name', 'full_name', 'phone'].includes(k) ? null : v])))}>{t('common.save')}</button></div>
     </Modal>
   );
 }
@@ -190,5 +205,26 @@ function PasswordModal({ shopId, onClose, onDone }: { shopId: string; onClose: (
       <div className="actions"><button className="btn" onClick={onClose}>{t('common.cancel')}</button>
         <button className="btn btn-primary" onClick={async () => { setErr(null); try { await api(`/admin/shops/${shopId}/reset-password`, { body: { password: pw, must_change_password: must } }); onDone(); } catch (e) { setErr(e instanceof ApiFailure ? e.code : 'network'); } }}>{t('common.save')}</button></div>
     </Modal>
+  );
+}
+
+function AdminNotes({ shopId, initial, onSaved }: { shopId: string; initial: any; onSaved: () => void }) {
+  const { t, te } = useI18n();
+  const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [limit, setLimit] = useState(initial?.credit_limit == null ? '' : String(initial.credit_limit));
+  const [err, setErr] = useState<string | null>(null);
+  const save = async () => {
+    setErr(null);
+    try { await api(`/admin/shops/${shopId}/admin-details`, { method: 'PUT', body: { notes: notes || null, credit_limit: limit === '' ? null : Number(limit) } }); onSaved(); }
+    catch (e) { setErr(e instanceof ApiFailure ? e.code : 'network'); }
+  };
+  return (
+    <section className="card stack" style={{ marginTop: 12 }} data-testid="admin-notes">
+      <h2>{t('cust.adminNotes')}</h2>
+      <textarea className="input" maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('cust.adminNotes')} />
+      <Field label={t('cust.creditLimit')}><input className="input" type="number" min={0} value={limit} onChange={(e) => setLimit(e.target.value)} name="credit_limit" /></Field>
+      {err && <div className="error-box">{te(err)}</div>}
+      <button className="btn btn-primary" onClick={save} data-testid="admin-notes-save">{t('common.save')}</button>
+    </section>
   );
 }

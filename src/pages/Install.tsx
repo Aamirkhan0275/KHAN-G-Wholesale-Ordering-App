@@ -20,7 +20,8 @@ export function InstallGuide() {
   return (
     <div className="stack">
       <p>{t('install.intro')}</p>
-      {isStandalone() ? <div className="ok-box"><Icon name="check" />{t('install.installed')}</div>
+      {/KhanGApp/.test(navigator.userAgent) ? <div className="ok-box" data-testid="in-android-app"><Icon name="check" />{t('app.androidApp')}</div>
+        : isStandalone() ? <div className="ok-box"><Icon name="check" />{t('install.installed')}</div>
         : canPromptInstall() && <button className="btn btn-primary btn-lg" onClick={() => void promptInstall()} data-testid="install-btn"><Icon name="install" />{t('install.button')}</button>}
       {sections.map(([title, steps, id]) => (
         <div className="card flat" key={id} data-platform={id}>

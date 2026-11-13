@@ -1,0 +1,51 @@
+plugins { id 'com.android.application' }
+
+def serverUrl = (project.findProperty('khangServerUrl') ?: '').toString().trim()
+def ks = System.getenv('KHANG_KEYSTORE')
+
+android {
+    namespace 'pk.khang.wholesale'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'pk.khang.wholesale'
+        minSdk 24
+        targetSdk 34
+        versionCode Integer.parseInt(project.findProperty('khangVersionCode') ?: '1')
+        versionName project.findProperty('khangVersionName') ?: '1.0.0'
+        buildConfigField 'String', 'SERVER_URL', "\"${serverUrl}\""
+    }
+
+    signingConfigs {
+        if (ks) {
+            release {
+                storeFile file(ks)
+                storePassword System.getenv('KHANG_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KHANG_KEY_ALIAS') ?: 'khang'
+                keyPassword System.getenv('KHANG_KEY_PASSWORD') ?: System.getenv('KHANG_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Production: HTTPS servers only.
+            buildConfigField 'boolean', 'ALLOW_HTTP', 'false'
+            manifestPlaceholders = [cleartext: 'false']
+            if (ks) signingConfig signingConfigs.release
+        }
+        debug {
+            // Test build: also allows http:// (e.g. a laptop on the same Wi-Fi: http://192.168.1.5:8787).
+            applicationIdSuffix '.test'
+            versionNameSuffix '-test'
+            buildConfigField 'boolean', 'ALLOW_HTTP', 'true'
+            manifestPlaceholders = [cleartext: 'true']
+        }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

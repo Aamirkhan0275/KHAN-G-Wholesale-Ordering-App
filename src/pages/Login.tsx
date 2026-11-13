@@ -6,6 +6,7 @@ import { api, ApiFailure } from '../lib/api';
 import { normalizePhone } from '../../shared/phone';
 import { HeaderControls } from '../components/Layout';
 import { Icon } from '../components/Icon';
+import { ContactCard } from '../components/ContactCard';
 
 export default function Login() {
   const { me, login, lang } = useSession();
@@ -16,7 +17,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [biz, setBiz] = useState<{ business_name: string; business_name_ur: string | null } | null>(null);
+  const [biz, setBiz] = useState<{ business_name: string; business_name_ur: string | null; business_whatsapp?: string | null; business_phone?: string | null } | null>(null);
 
   useEffect(() => { api('/public/settings').then(setBiz).catch(() => {}); }, []);
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function Login() {
         <button className="btn btn-primary btn-lg btn-block" disabled={busy} type="submit">{busy ? t('auth.signingIn') : t('auth.signIn')}</button>
         <p className="muted small center" style={{ margin: 0 }}>{t('auth.noAccount')}</p>
       </form>
+      {(biz?.business_whatsapp || biz?.business_phone) && <div className="login-card"><ContactCard whatsapp={biz.business_whatsapp} phone={biz.business_phone} compact /></div>}
       <Link to="/install" className="btn btn-ghost"><Icon name="install" />{t('auth.installApp')}</Link>
     </div>
   );

@@ -62,8 +62,10 @@ export function createApp(deps: Deps) {
   });
 
   app.get('/api/public/settings', async (c) => {
-    const [s] = await sql`select business_name, business_name_ur from app_settings where id = 1`;
-    return c.json({ business_name: s?.business_name ?? 'KHAN G', business_name_ur: s?.business_name_ur ?? null });
+    // Business contact is public information (shown on the sign-in screen for people who need an account).
+    const [s] = await sql`select business_name, business_name_ur, business_whatsapp, business_phone from app_settings where id = 1`;
+    return c.json({ business_name: s?.business_name ?? 'KHAN G', business_name_ur: s?.business_name_ur ?? null,
+      business_whatsapp: s?.business_whatsapp ?? null, business_phone: s?.business_phone ?? null });
   });
 
   // ---------------------------------------------------------------- auth
@@ -140,7 +142,7 @@ export function createApp(deps: Deps) {
       catch (e) { log('error', 'reminder_on_visit_failed', { error: String(e) }); }
     }
     const [settings] = await asUser(sql, user.id, (tx) => tx`
-      select business_name, business_name_ur, business_whatsapp, currency, show_prices, timezone from app_settings where id = 1`);
+      select business_name, business_name_ur, business_whatsapp, business_phone, business_address, currency, show_prices, timezone from app_settings where id = 1`);
     return c.json({ user, settings: settings ?? null });
   });
 

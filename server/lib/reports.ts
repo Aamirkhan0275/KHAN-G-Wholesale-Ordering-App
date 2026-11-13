@@ -107,3 +107,76 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   };
   return '﻿' + [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\r\n') + '\r\n';
 }
+
+export type Period = 'day' | 'week' | 'month' | 'year';
+export const PERIOD_MAX_DAYS: Record<Period, number> = { day: 366, week: 3 * 366, month: 10 * 366, year: 10 * 366 };
+
+/**
+ * Sales grouped by day / ISO week (Mon-Sun) / month / year, in the business timezone.
+ * Same rules as the other reports: cancelled orders excluded, money only from issued
+ * invoices (by invoice date) and recorded payments (by payment date).
+ */
+export async function salesByPeriod(tx: Tx, r: Range, period: Period) {
+  const unit = period;
+  const step = `1 ${period}`;
+  const rows = await tx<any[]>`
+    with b as (
+      select g::date as start, (g + ${step}::interval)::date as next
+      from generate_series(date_trunc(${unit}, ${r.from}::date::timestamp), date_trunc(${unit}, ${r.to}::date::timestamp), ${step}::interval) g
+    ),
+    o as (
+      select date_trunc(${unit}, (submitted_at at time zone ${r.tz}))::date as start,
+             count(*) filter (where status <> 'cancelled') as orders,
+             count(*) filter (where status = 'cancelled') as cancelled,
+             coalesce(sum(total_requested_qty) filter (where status <> 'cancelled'), 0) as requested_units,
+             coalesce(sum(total_approved_qty) filter (where status in ('confirmed','ready','delivered')), 0) as confirmed_units,
+             count(distinct shop_id) filter (where status <> 'cancelled') as shops
+      from orders
+      where submitted_at >= ((${r.from}::date)::timestamp at time zone ${r.tz}) and submitted_at < (((${r.to}::date) + 1)::timestamp at time zone ${r.tz})
+      group by 1
+    ),
+    i as (
+      select date_trunc(${unit}, issue_date::timestamp)::date as start, count(*) as invoices, coalesce(sum(total), 0) as invoiced_total
+      from invoices where status = 'issued' and issue_date between ${r.from}::date and ${r.to}::date group by 1
+    ),
+    p as (
+      select date_trunc(${unit}, entry_date::timestamp)::date as start, coalesce(sum(credit), 0) as payments_total
+      from ledger_entries where kind = 'payment' and entry_date between ${r.from}::date and ${r.to}::date group by 1
+    )
+    select to_char(b.start, 'YYYY-MM-DD') as period_start,
+           to_char(greatest(least(b.next - 1, ${r.to}::date), b.start), 'YYYY-MM-DD') as period_end,
+           case ${period}::text when 'day' then to_char(b.start, 'YYYY-MM-DD') when 'week' then to_char(b.start, 'IYYY-"W"IW')
+                when 'month' then to_char(b.start, 'YYYY-MM') else to_char(b.start, 'YYYY') end as period,
+           coalesce(o.orders, 0) as orders, coalesce(o.cancelled, 0) as cancelled, coalesce(o.shops, 0) as shops,
+           coalesce(o.requested_units, 0) as requested_units, coalesce(o.confirmed_units, 0) as confirmed_units,
+           coalesce(i.invoices, 0) as invoices, coalesce(i.invoiced_total, 0) as invoiced_total,
+           coalesce(p.payments_total, 0) as payments_total
+    from b left join o on o.start = b.start left join i on i.start = b.start left join p on p.start = b.start
+    order by b.start`;
+  const sum = (k: string) => rows.reduce((s, x) => s + Number(x[k] ?? 0), 0);
+  const totals = {
+    orders: sum('orders'), cancelled: sum('cancelled'), requested_units: sum('requested_units'), confirmed_units: sum('confirmed_units'),
+    invoices: sum('invoices'), invoiced_total: Math.round(sum('invoiced_total') * 100) / 100, payments_total: Math.round(sum('payments_total') * 100) / 100,
+  };
+  return { rows, totals };
+}
+
+/**
+ * The range to compare with. Whole calendar months/years shift by the same number of
+ * months/years (e.g. April -> March, 2026 -> 2025); anything else uses the same number
+ * of days immediately before.
+ */
+export function previousRange(from: string, to: string, period: Period): { prevFrom: string; prevTo: string } {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const f = new Date(`${from}T00:00:00Z`);
+  const t = new Date(`${to}T00:00:00Z`);
+  const lastOfMonth = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate() === d.getUTCDate();
+  const prevTo = iso(new Date(f.getTime() - 86400000));
+  if ((period === 'month' || period === 'year') && f.getUTCDate() === 1 && lastOfMonth(t)) {
+    const months = (t.getUTCFullYear() - f.getUTCFullYear()) * 12 + (t.getUTCMonth() - f.getUTCMonth()) + 1;
+    const shift = period === 'year' && f.getUTCMonth() === 0 && t.getUTCMonth() === 11 ? Math.ceil(months / 12) * 12 : months;
+    return { prevFrom: iso(new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() - shift, 1))), prevTo };
+  }
+  const days = Math.round((t.getTime() - f.getTime()) / 86400000) + 1;
+  return { prevFrom: iso(new Date(f.getTime() - days * 86400000)), prevTo };
+}

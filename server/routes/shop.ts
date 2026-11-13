@@ -158,6 +158,18 @@ shopRoutes.get('/ledger', async (c) => {
   return c.json(data);
 });
 
+/** The shop's own customer record, as KHAN G keeps it (read-only for the shop). */
+shopRoutes.get('/profile', async (c) => {
+  const { sql } = c.get('deps');
+  const user = c.get('user');
+  const [row] = await asUser(sql, user.id, (tx) => tx`
+    select s.name as shop_name, s.address, s.location_note, s.city, s.area, s.alternate_phone, s.whatsapp_phone, s.email,
+           s.cnic, s.ntn, s.shop_type, s.created_at, u.full_name, u.phone
+    from shops s join app_users u on u.id = s.owner_user_id where s.id = ${user.shop_id}`);
+  if (!row) throw notFound();
+  return c.json({ profile: row });
+});
+
 shopRoutes.get('/invoices', async (c) => {
   const { sql } = c.get('deps');
   const user = c.get('user');

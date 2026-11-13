@@ -119,7 +119,7 @@ export default function AdminOrderDetail() {
         </div>
         {locked && <div className="info-box" style={{ marginBottom: 10 }}><Icon name="check" />{t('ao.locked')}</div>}
         <div className="table-wrap">
-          <table className="table" data-testid="review-table">
+          <table className="table stack-mobile" data-testid="review-table">
             <thead><tr><th>{t('common.items')}</th><th className="num">{t('ao.requested')}</th><th className="num">{t('ao.stockNow')}</th><th>{t('ao.approve')}</th><th>{t('ao.unitPrice')}</th><th>{t('ao.noteForShop')}</th><th>{t('common.status')}</th></tr></thead>
             <tbody>
               {data.items.map((i: any) => {
