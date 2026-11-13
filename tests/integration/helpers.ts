@@ -94,7 +94,7 @@ export async function setupTestApp(name: string) {
     app, sql, env, url, admin: adminU, shopA, shopB, pending, inactive, products, categoryId: cat.id as string,
     client, login, placeOrder,
     setNow: (d: Date | null) => { nowOverride = d; },
-    asUser: <T>(userId: string, fn: (tx: any) => Promise<T>) => asUser(sql as Sql, userId, fn),
+    asUser: (userId: string, fn: (tx: any) => any): Promise<any> => asUser(sql as Sql, userId, async (tx) => fn(tx)),
     close: async () => { await sql.end({ timeout: 2 }); },
   };
 }

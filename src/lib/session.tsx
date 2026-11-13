@@ -29,6 +29,13 @@ interface SessionCtx {
 }
 
 const Ctx = createContext<SessionCtx | null>(null);
+const SESSION_CACHE = 'kg.session.v1';
+function loadCachedSession(): { user: Me; settings: PublicSettings } | null {
+  try { return JSON.parse(localStorage.getItem(SESSION_CACHE) ?? 'null'); } catch { return null; }
+}
+function saveCachedSession(v: { user: Me; settings: PublicSettings } | null) {
+  try { if (v) localStorage.setItem(SESSION_CACHE, JSON.stringify(v)); else localStorage.removeItem(SESSION_CACHE); } catch { /* ignore */ }
+}
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -54,17 +61,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSettings(r.settings);
       setLangState(r.user.language);
       setThemeState(r.user.theme);
+      saveCachedSession({ user: r.user, settings: r.settings });
     } catch (e) {
-      if (e instanceof ApiFailure && (e.status === 401 || e.status === 403)) setMe(null);
-      else if (e instanceof ApiFailure && e.code === 'network') { /* offline: keep whatever we had */ }
-      else setMe(null);
+      if (e instanceof ApiFailure && e.code === 'network') {
+        // Offline: reopen with the last signed-in profile so cached screens still show.
+        // The server still checks the real session on every request once online.
+        const cached = loadCachedSession();
+        setMe((m) => m ?? cached?.user ?? null);
+        setSettings((s) => s ?? cached?.settings ?? null);
+      } else {
+        setMe(null);
+        saveCachedSession(null);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
-  useEffect(() => onUnauthorized(() => setMe(null)), []);
+  useEffect(() => onUnauthorized(() => { setMe(null); saveCachedSession(null); }), []);
 
   const savePref = useCallback((patch: Record<string, unknown>) => {
     if (!me) return Promise.resolve();
@@ -88,6 +103,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     logout: async () => {
       await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
       clearCatalogueCache();
+      saveCachedSession(null);
       setMe(null);
     },
     refresh,

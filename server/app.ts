@@ -49,6 +49,9 @@ export function createApp(deps: Deps) {
     const m = c.req.method;
     if (m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS' && !c.req.path.startsWith('/api/cron/')) {
       if (c.req.header('x-kg-csrf') !== '1') return c.json({ error: 'csrf_header_missing' }, 403);
+      // In production, also require the browser's Origin to be our own site when it is sent.
+      const origin = c.req.header('origin');
+      if (env.appOrigin && origin && origin !== env.appOrigin) return c.json({ error: 'bad_origin' }, 403);
     }
     await next();
   });

@@ -102,6 +102,17 @@ describe('sign-in and account access', () => {
     expect(r).toMatchObject({ status: 403, body: { error: 'csrf_header_missing' } });
   });
 
+  it('with APP_ORIGIN set, POSTs from another site are refused', async () => {
+    const c = await ctx.login('03001000001');
+    ctx.env.appOrigin = 'https://app.khang.example';
+    try {
+      const bad = await c.req('POST', '/api/shop/favourites/' + ctx.products.p1, {}, { headers: { origin: 'https://evil.example' } });
+      expect(bad).toMatchObject({ status: 403, body: { error: 'bad_origin' } });
+      const ok = await c.req('POST', '/api/shop/favourites/' + ctx.products.p1, {}, { headers: { origin: 'https://app.khang.example' } });
+      expect(ok.status).toBe(200);
+    } finally { ctx.env.appOrigin = undefined; }
+  });
+
   it('temporary password must be changed before using the app', async () => {
     const admin = await ctx.login('03000000009');
     expect((await admin.post(`/api/admin/shops/${ctx.shopB.shopId}/reset-password`, { password: '739104', must_change_password: true })).status).toBe(200);

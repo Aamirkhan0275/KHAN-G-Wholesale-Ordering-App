@@ -90,7 +90,7 @@ describe('invoices', () => {
   });
 
   it('long invoices paginate', async () => {
-    const ids = [];
+    const ids: string[] = [];
     for (let i = 0; i < 40; i++) {
       const [p] = await ctx.sql`insert into products (sku, name_en, price, stock_qty) values (${'BULK' + i}, ${'Bulk item number ' + i}, 10, 100) returning id`;
       ids.push(p.id);
