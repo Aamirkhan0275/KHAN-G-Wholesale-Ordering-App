@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ur" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f6b4a" />
+    <meta name="description" content="KHAN G wholesale ordering for approved shopkeepers" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="KHAN G" />
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>KHAN G Wholesale</title>
+    <script>
+      // Apply saved language/theme before first paint (no flash, correct RTL immediately).
+      (function () {
+        try {
+          var l = localStorage.getItem('kg.lang');
+          if (l !== 'en' && l !== 'ur') l = (navigator.language || '').toLowerCase().indexOf('ur') === 0 ? 'ur' : 'en';
+          var t = localStorage.getItem('kg.theme');
+          var dark = t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+          var h = document.documentElement;
+          h.lang = l; h.dir = l === 'ur' ? 'rtl' : 'ltr'; h.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>KHAN G needs JavaScript enabled.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,58 @@
+{
+  "name": "khan-g-wholesale-ordering-app",
+  "version": "1.0.0",
+  "description": "KHAN G Wholesale Ordering App - mobile-first PWA for wholesale carton ordering",
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "dev:api": "tsx watch server/node.ts",
+    "dev:web": "vite",
+    "db:start": "tsx scripts/dev-db.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed-demo": "tsx scripts/seed-demo.ts",
+    "build": "vite build",
+    "start": "NODE_ENV=production tsx server/node.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "tsx tests/e2e/run-e2e.ts",
+    "icons": "tsx scripts/make-icons.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://api.devbench.vesprr.com/api/git/792/311.git"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource/noto-nastaliq-urdu": "^5.3.0",
+    "@hono/node-server": "^1.13.7",
+    "bcryptjs": "^3.0.3",
+    "hono": "^4.13.18",
+    "jose": "^6.2.17",
+    "pdf-lib": "^1.17.1",
+    "postgres": "^3.4.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "4.3",
+    "embedded-postgres": "^17.2.0-beta.15",
+    "playwright-core": "1.48",
+    "tsx": "^4.23.15",
+    "typescript": "5.6",
+    "vite": "5.4",
+    "vite-plugin-pwa": "^0.20.5",
+    "vitest": "2.1"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}
