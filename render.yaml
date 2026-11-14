@@ -1,0 +1,34 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repository.
+# Free plan: the service sleeps after 15 min without visitors (~1 min to wake up).
+# Database: a free Neon PostgreSQL (paste its connection string as DATABASE_URL).
+services:
+  - type: web
+    name: khan-g
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL          # Neon connection string (postgresql://...sslmode=require)
+        sync: false
+      - key: ADMIN_PHONE           # owner's mobile, e.g. 03001234567 (first start creates the owner account)
+        sync: false
+      - key: ADMIN_PASSWORD        # owner's password, at least 6 characters, not 123456
+        sync: false
+      - key: BUSINESS_WHATSAPP     # WhatsApp number that receives orders (editable later in Settings)
+        sync: false
+      - key: BUSINESS_NAME
+        value: KHAN G
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: SEED_DEMO
+        value: "false"
+      - key: AUTO_MIGRATE
+        value: "true"

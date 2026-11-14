@@ -61,6 +61,6 @@ export function loadEnv(e: Record<string, string | undefined> = process.env): En
     reminderIntervalSeconds: Number(e.REMINDER_INTERVAL_SECONDS ?? 300),
     notifyUrl: e.DEVBENCH_NOTIFY_URL,
     notifyToken: e.DEVBENCH_NOTIFY_TOKEN,
-    appOrigin: e.APP_ORIGIN,
+    appOrigin: e.APP_ORIGIN ?? e.RENDER_EXTERNAL_URL, // Render provides its public https URL
   };
 }

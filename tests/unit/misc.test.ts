@@ -55,3 +55,22 @@ describe('report comparison range', () => {
     expect(previousRange('2026-03-10', '2026-03-10', 'day')).toEqual({ prevFrom: '2026-03-09', prevTo: '2026-03-09' });
   });
 });
+
+import { dbConnectionOptions } from '../../server/lib/db';
+describe('hosted database URLs (Neon / Supabase)', () => {
+  it('Neon pooled URL: TLS required, unknown params removed, no prepared statements', () => {
+    const r = dbConnectionOptions('postgresql://u:p@ep-cool-1-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+    expect(r).toEqual({ url: 'postgresql://u:p@ep-cool-1-pooler.ap-southeast-1.aws.neon.tech/neondb', ssl: 'require', prepare: false });
+  });
+  it('Neon direct URL keeps prepared statements', () => {
+    expect(dbConnectionOptions('postgresql://u:p@ep-cool-1.ap-southeast-1.aws.neon.tech/neondb?sslmode=require')).toMatchObject({ ssl: 'require', prepare: true });
+  });
+  it('Supabase pooler (port 6543) and remote hosts default to TLS', () => {
+    expect(dbConnectionOptions('postgres://u:p@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres')).toMatchObject({ ssl: 'require', prepare: false });
+    expect(dbConnectionOptions('postgres://u:p@db.example.com:5432/x')).toMatchObject({ ssl: 'require', prepare: true });
+  });
+  it('local databases stay without TLS; sslmode=disable is respected', () => {
+    expect(dbConnectionOptions('postgres://postgres:postgres@127.0.0.1:54329/postgres')).toMatchObject({ ssl: false, prepare: true });
+    expect(dbConnectionOptions('postgres://u:p@db.internal:5432/x?sslmode=disable')).toMatchObject({ ssl: false });
+  });
+});
